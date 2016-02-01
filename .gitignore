@@ -1,0 +1,10 @@
+bin/
+obj/
+gen/
+libs/
+
+*.DS_Store
+.classpath
+.project
+
+
