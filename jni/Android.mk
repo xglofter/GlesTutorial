@@ -11,7 +11,8 @@ LOCAL_CPPFLAGS  := -std=c++11
 
 LOCAL_SRC_FILES := \
 com_richard_glestutorial_GLRenderer.cpp \
-../core/Director.cpp
+../core/Director.cpp \
+../core/GLProgram.cpp
                 
 LOCAL_C_INCLUDES := \
 $(LOCAL_PATH)
