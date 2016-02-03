@@ -7,7 +7,6 @@ class Director
 {
 public:
     static Director* getInstance();
-    void init();
 
     /*
      * set OpenGL view frame size
@@ -32,6 +31,8 @@ public:
 private:
     Director();
     ~Director();
+
+    void init();
 
     GLProgram *_glProgram;
     GLuint _vPositionHandle;

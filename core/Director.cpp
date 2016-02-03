@@ -28,25 +28,28 @@ Director::Director() :
   _fFrameHeight(0),
   _glProgram(nullptr)
 {
-	LOGV("Direcotr()");
-    init();
+    LOGV("Direcotr()");
 }
 
 Director::~Director()
 {
-	LOGV("~Director()");
+    LOGV("~Director()");
 }
 
 void Director::init()
 {
+    LOGV("===========================================");
     printGLString("Version", GL_VERSION);
     printGLString("Vendor", GL_VENDOR);
     printGLString("Renderer", GL_RENDERER);
     printGLString("Extensions", GL_EXTENSIONS);
+    LOGV("===========================================");
 }
 
 void Director::setFrameSize(float width, float height)
 {
+    this->init();
+
     LOGI("Director::setFrameSize(%lf, %lf)", width, height);
     _fFrameWidth = width;
     _fFrameHeight = height;
@@ -63,7 +66,7 @@ void Director::setFrameSize(float width, float height)
 
 void Director::mainLoop()
 {
-	static float grey;
+    static float grey;
     grey += 0.01f;
     if (grey > 1.0f) {
         grey = 0.0f;
@@ -81,11 +84,11 @@ void Director::mainLoop()
 
 void Director::onEnterBackground()
 {
-	LOGV("Director::onEnterBackground");
+    LOGV("Director::onEnterBackground");
 }
 
 void Director::onEnterForeground()
 {
-	LOGV("Director::onEnterForeground");
+    LOGV("Director::onEnterForeground");
 }
 
