@@ -29,6 +29,8 @@ public:
      */
     GLuint getAttribLocation(const GLchar* attrib);
 
+    inline GLuint getProgramHandle() {return _uProgram;}
+
 private:
     GLuint loadShader(GLenum shaderType, const GLchar* shaderSrc);
 

@@ -35,7 +35,6 @@ private:
     void init();
 
     GLProgram *_glProgram;
-    GLuint _vPositionHandle;
 
     float _fFrameWidth;
     float _fFrameHeight;

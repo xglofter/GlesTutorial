@@ -2,20 +2,28 @@
 #include "AppMacros.h"
 
 
-static const char gVertexShader[] = 
-    "attribute vec4 vPosition;\n"
-    "void main() {\n"
-    "  gl_Position = vPosition;\n"
+static const char gVertexShader[] =
+    "attribute vec4 a_position;\n"
+    "attribute vec4 a_color;\n"
+    "varying vec4 v_color;\n"
+    "void main()\n"
+    "{\n"
+    "  v_color = a_color;\n"
+    "  gl_Position = a_position;\n" 
     "}\n";
 
-static const char gFragmentShader[] = 
-    "precision mediump float;\n"
-    "void main() {\n"
-    "  gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n"
+static const char gFragmentShader[] =
+    "varying vec4 v_color;\n"
+    "void main()\n"
+    "{\n"
+    "  gl_FragColor = v_color;\n"
     "}\n";
 
 const GLfloat gTriangleVertices[] = { 0.0f, 0.5f, -0.5f,
                                      -0.5f, 0.5f, -0.5f };
+
+const GLfloat gColor[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
+
 
 Director* Director::getInstance()
 {
@@ -58,10 +66,8 @@ void Director::setFrameSize(float width, float height)
     _glProgram->initWithVertexShaderByteArray(gVertexShader, gFragmentShader);
     _glProgram->link();
     _glProgram->use();
-    _vPositionHandle = _glProgram->getAttribLocation("vPosition");
 
     glViewport(0, 0, width, height);
-    checkGlError("glViewport");
 }
 
 void Director::mainLoop()
@@ -74,12 +80,12 @@ void Director::mainLoop()
     glClearColor(grey, grey, grey, 1.0f);
     glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    glVertexAttribPointer(_vPositionHandle, 2, GL_FLOAT, GL_FALSE, 0, gTriangleVertices);
-    checkGlError("glVertexAttribPointer");
-    glEnableVertexAttribArray(_vPositionHandle);
-    checkGlError("glEnableVertexAttribArray");
+    glVertexAttrib4fv(0, gColor);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, gTriangleVertices); 
+    glEnableVertexAttribArray(1);
+    glBindAttribLocation(_glProgram->getProgramHandle(), 0, "a_color"); 
+    glBindAttribLocation(_glProgram->getProgramHandle(), 1, "a_position");
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    checkGlError("glDrawArrays");
 }
 
 void Director::onEnterBackground()
