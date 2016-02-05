@@ -13,16 +13,21 @@ static const char gVertexShader[] =
     "}\n";
 
 static const char gFragmentShader[] =
+    "precision mediump float;   \n"
     "varying vec4 v_color;\n"
     "void main()\n"
     "{\n"
     "  gl_FragColor = v_color;\n"
     "}\n";
 
-const GLfloat gTriangleVertices[] = { 0.0f, 0.5f, -0.5f,
-                                     -0.5f, 0.5f, -0.5f };
+const GLfloat gTriangleVertices[] = { 0.0f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f };
 
 const GLfloat gColor[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+const GLfloat gData[] = { 0.0f, 0.5f,
+                         -0.5f, -0.5f, 
+                         0.5f, -0.5f, 
+                         1.0f, 1.0f, 0.0f, 1.0f};
 
 
 Director* Director::getInstance()
@@ -50,7 +55,6 @@ void Director::init()
     printGLString("Version", GL_VERSION);
     printGLString("Vendor", GL_VENDOR);
     printGLString("Renderer", GL_RENDERER);
-    printGLString("Extensions", GL_EXTENSIONS);
     LOGV("===========================================");
 }
 
@@ -72,19 +76,28 @@ void Director::setFrameSize(float width, float height)
 
 void Director::mainLoop()
 {
-    static float grey;
-    grey += 0.01f;
-    if (grey > 1.0f) {
-        grey = 0.0f;
-    }
-    glClearColor(grey, grey, grey, 1.0f);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // use white color as background
     glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    glVertexAttrib4fv(0, gColor);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, gTriangleVertices); 
-    glEnableVertexAttribArray(1);
-    glBindAttribLocation(_glProgram->getProgramHandle(), 0, "a_color"); 
-    glBindAttribLocation(_glProgram->getProgramHandle(), 1, "a_position");
+    GLint idxColor = glGetAttribLocation(_glProgram->getProgramHandle(), "a_color");
+    GLint idxPos = glGetAttribLocation(_glProgram->getProgramHandle(), "a_position");
+
+    glVertexAttrib4fv(idxColor, gColor);
+
+    //// not use VBO's code  ////
+    // glVertexAttribPointer(idxPos, 2, GL_FLOAT, GL_FALSE, 0, gTriangleVertices); 
+    // glEnableVertexAttribArray(idxPos);
+    //// not use VBO's code  ////
+
+    //// use VBO ////
+    GLuint arrayBuff[1];
+    glGenBuffers(1, arrayBuff);
+    glBindBuffer(GL_ARRAY_BUFFER, arrayBuff[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GL_FLOAT)*6, gTriangleVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(idxPos);
+    glVertexAttribPointer(idxPos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    //// use VBO ////
+
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
