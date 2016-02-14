@@ -3,12 +3,14 @@
 
 
 static const char gVertexShader[] =
+    "uniform float u_offset;      \n"
     "attribute vec4 a_position;   \n"
     "attribute vec2 a_texCoord;   \n"
     "varying vec2 v_texCoord;     \n"
     "void main()                  \n"
     "{                            \n"
     "   gl_Position = a_position; \n"
+    "   gl_Position.x += u_offset;\n"
     "   v_texCoord = a_texCoord;  \n"
     "}                            \n";
 
@@ -21,22 +23,14 @@ static const char gFragmentShader[] =
     "  gl_FragColor = texture2D( s_texture, v_texCoord );\n"
     "}                                                   \n";
 
-// 2x2 Image, 3 bytes per pixel (R, G, B)
-const GLubyte gPixels[4 * 3] = {  
-    255,   0,   0, // Red
-    0, 255,   0, // Green
-    0,   0, 255, // Blue
-    255, 255,   0  // Yellow
-};
-
-GLfloat gVertices[] = { -0.5f,  0.5f, 0.0f,  // Position 0
-                        0.0f,  0.0f,        // TexCoord 0 
-                       -0.5f, -0.5f, 0.0f,  // Position 1
-                        0.0f,  1.0f,        // TexCoord 1
-                        0.5f, -0.5f, 0.0f,  // Position 2
-                        1.0f,  1.0f,        // TexCoord 2
-                        0.5f,  0.5f, 0.0f,  // Position 3
-                        1.0f,  0.0f         // TexCoord 3
+GLfloat gVertices[] = { -0.3f,  0.3f, 0.0f, 1.0f,  // Position 0
+                       -1.0f,  -1.0f,              // TexCoord 0 
+                       -0.3f, -0.3f, 0.0f, 1.0f, // Position 1
+                       -1.0f,  2.0f,              // TexCoord 1
+                        0.3f, -0.3f, 0.0f, 1.0f, // Position 2
+                        2.0f,  2.0f,              // TexCoord 2
+                        0.3f,  0.3f, 0.0f, 1.0f,  // Position 3
+                        2.0f,  -1.0f               // TexCoord 3
                      };
 GLushort indices[] = { 0, 1, 2, 0, 2, 3 };
 
@@ -68,10 +62,46 @@ void Director::init()
     LOGV("===========================================");
 }
 
+
+// Generate an RGB8 checkerboard image
+static GLubyte* GenCheckImage( int width, int height, int checkSize )
+{
+    int x, y;
+    GLubyte *pixels = (GLubyte*)malloc( width * height * 3 );
+
+    if ( pixels == NULL )
+        return NULL;
+
+    for ( y = 0; y < height; y++ )
+        for ( x = 0; x < width; x++ )
+        {
+            GLubyte rColor = 0;
+            GLubyte bColor = 0;
+
+            if ( ( x / checkSize ) % 2 == 0 )
+            {
+                rColor = 255 * ( ( y / checkSize ) % 2 );
+                bColor = 255 * ( 1 - ( ( y / checkSize ) % 2 ) );
+            }
+            else
+            {
+                bColor = 255 * ( ( y / checkSize ) % 2 );
+                rColor = 255 * ( 1 - ( ( y / checkSize ) % 2 ) );
+            }
+
+            pixels[(y * height + x) * 3] = rColor;
+            pixels[(y * height + x) * 3 + 1] = 0;
+            pixels[(y * height + x) * 3 + 2] = bColor; 
+        } 
+    return pixels;
+}
+
+
 static GLuint textureId;
 static GLint positionLoc;
 static GLint texCoordLoc;
 static GLint samplerLoc;
+static GLint offsetLoc;
 
 void Director::setFrameSize(float width, float height)
 {
@@ -88,15 +118,26 @@ void Director::setFrameSize(float width, float height)
 
     positionLoc = glGetAttribLocation(_glProgram->getProgramHandle(), "a_position");
     texCoordLoc = glGetAttribLocation(_glProgram->getProgramHandle(), "a_texCoord");
-    samplerLoc = glGetUniformLocation(_glProgram->getProgramHandle(), "s_texture" );
+    samplerLoc = glGetUniformLocation(_glProgram->getProgramHandle(), "s_texture");
+    offsetLoc = glGetUniformLocation(_glProgram->getProgramHandle(), "u_offset");
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    int wid = 256, hei = 256;
+    GLubyte *pixels;
+      
+    pixels = GenCheckImage(wid, hei, 64);
+    if (pixels == NULL)
+        return;
+
     glGenTextures(1, &textureId);
     glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, gPixels);
+
+    // Load mipmap level 0
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wid, hei, 
+                    0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
     // Set the filtering mode
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     glViewport(0, 0, width, height);
 }
@@ -106,11 +147,10 @@ void Director::mainLoop()
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // use white color as background
     glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    // Load the vertex position
-    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), gVertices);
-    // Load the texture coordinate
-    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), &gVertices[3]);
-
+    glVertexAttribPointer(positionLoc, 4, GL_FLOAT, 
+                            GL_FALSE, 6 * sizeof(GLfloat), gVertices);
+    glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT,
+                            GL_FALSE, 6 * sizeof(GLfloat), &gVertices[4]);
     glEnableVertexAttribArray(positionLoc);
     glEnableVertexAttribArray(texCoordLoc);
 
@@ -121,6 +161,22 @@ void Director::mainLoop()
     // Set the sampler texture unit to 0
     glUniform1i(samplerLoc, 0);
 
+    // Draw quad with repeat wrap mode
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glUniform1f(offsetLoc, -0.7f);   
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
+
+    // Draw quad with clamp to edge wrap mode
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glUniform1f(offsetLoc, 0.0f);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
+
+    // Draw quad with mirrored repeat
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    glUniform1f(offsetLoc, 0.7f);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 }
 
