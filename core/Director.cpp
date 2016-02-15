@@ -23,14 +23,14 @@ static const char gFragmentShader[] =
     "  gl_FragColor = texture2D( s_texture, v_texCoord );\n"
     "}                                                   \n";
 
-GLfloat gVertices[] = { -0.3f,  0.3f, 0.0f, 1.0f,  // Position 0
-                       -1.0f,  -1.0f,              // TexCoord 0 
-                       -0.3f, -0.3f, 0.0f, 1.0f, // Position 1
-                       -1.0f,  2.0f,              // TexCoord 1
-                        0.3f, -0.3f, 0.0f, 1.0f, // Position 2
-                        2.0f,  2.0f,              // TexCoord 2
-                        0.3f,  0.3f, 0.0f, 1.0f,  // Position 3
-                        2.0f,  -1.0f               // TexCoord 3
+GLfloat gVertices[] = { -0.5f,  0.5f, 0.0f, 1.5f,  // Position 0
+                        0.0f,  0.0f,              // TexCoord 0 
+                       -0.5f, -0.5f, 0.0f, 0.15f, // Position 1
+                        0.0f,  1.0f,              // TexCoord 1
+                        0.5f, -0.5f, 0.0f, 0.15f, // Position 2
+                        1.0f,  1.0f,              // TexCoord 2
+                        0.5f,  0.5f, 0.0f, 1.5f,  // Position 3
+                        1.0f,  0.0f               // TexCoord 3
                      };
 GLushort indices[] = { 0, 1, 2, 0, 2, 3 };
 
@@ -123,7 +123,7 @@ void Director::setFrameSize(float width, float height)
 
     int wid = 256, hei = 256;
     GLubyte *pixels;
-      
+
     pixels = GenCheckImage(wid, hei, 64);
     if (pixels == NULL)
         return;
@@ -131,11 +131,10 @@ void Director::setFrameSize(float width, float height)
     glGenTextures(1, &textureId);
     glBindTexture(GL_TEXTURE_2D, textureId);
 
-    // Load mipmap level 0
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wid, hei, 
                     0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glGenerateMipmap(GL_TEXTURE_2D);
 
-    // Set the filtering mode
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -161,23 +160,16 @@ void Director::mainLoop()
     // Set the sampler texture unit to 0
     glUniform1i(samplerLoc, 0);
 
-    // Draw quad with repeat wrap mode
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glUniform1f(offsetLoc, -0.7f);   
+    // Draw quad with nearest sampling
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glUniform1f(offsetLoc, -0.6f);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 
-    // Draw quad with clamp to edge wrap mode
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glUniform1f(offsetLoc, 0.0f);
+    // Draw quad with trilinear filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glUniform1f(offsetLoc, 0.6f);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 
-    // Draw quad with mirrored repeat
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-    glUniform1f(offsetLoc, 0.7f);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 }
 
 void Director::onEnterBackground()
