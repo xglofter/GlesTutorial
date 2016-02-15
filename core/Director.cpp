@@ -3,14 +3,12 @@
 
 
 static const char gVertexShader[] =
-    "uniform float u_offset;      \n"
     "attribute vec4 a_position;   \n"
     "attribute vec2 a_texCoord;   \n"
     "varying vec2 v_texCoord;     \n"
     "void main()                  \n"
     "{                            \n"
     "   gl_Position = a_position; \n"
-    "   gl_Position.x += u_offset;\n"
     "   v_texCoord = a_texCoord;  \n"
     "}                            \n";
 
@@ -23,14 +21,14 @@ static const char gFragmentShader[] =
     "  gl_FragColor = texture2D( s_texture, v_texCoord );\n"
     "}                                                   \n";
 
-GLfloat gVertices[] = { -0.5f,  0.5f, 0.0f, 1.5f,  // Position 0
-                        0.0f,  0.0f,              // TexCoord 0 
-                       -0.5f, -0.5f, 0.0f, 0.15f, // Position 1
-                        0.0f,  1.0f,              // TexCoord 1
-                        0.5f, -0.5f, 0.0f, 0.15f, // Position 2
-                        1.0f,  1.0f,              // TexCoord 2
-                        0.5f,  0.5f, 0.0f, 1.5f,  // Position 3
-                        1.0f,  0.0f               // TexCoord 3
+GLfloat gVertices[] = { -0.5f,  0.5f, 0.0f,  // Position 0
+                        0.0f,  0.0f,        // TexCoord 0 
+                       -0.5f, -0.5f, 0.0f,  // Position 1
+                        0.0f,  1.0f,        // TexCoord 1
+                        0.5f, -0.5f, 0.0f,  // Position 2
+                        1.0f,  1.0f,        // TexCoord 2
+                        0.5f,  0.5f, 0.0f,  // Position 3
+                        1.0f,  0.0f         // TexCoord 3
                      };
 GLushort indices[] = { 0, 1, 2, 0, 2, 3 };
 
@@ -101,7 +99,6 @@ static GLuint textureId;
 static GLint positionLoc;
 static GLint texCoordLoc;
 static GLint samplerLoc;
-static GLint offsetLoc;
 
 void Director::setFrameSize(float width, float height)
 {
@@ -119,24 +116,25 @@ void Director::setFrameSize(float width, float height)
     positionLoc = glGetAttribLocation(_glProgram->getProgramHandle(), "a_position");
     texCoordLoc = glGetAttribLocation(_glProgram->getProgramHandle(), "a_texCoord");
     samplerLoc = glGetUniformLocation(_glProgram->getProgramHandle(), "s_texture");
-    offsetLoc = glGetUniformLocation(_glProgram->getProgramHandle(), "u_offset");
 
-    int wid = 256, hei = 256;
-    GLubyte *pixels;
+    const char* fileName = "/sdcard/1.tga";
+    int wid, hei;
+    char *buffer = this->loadTGA(fileName, &wid, &hei);
 
-    pixels = GenCheckImage(wid, hei, 64);
-    if (pixels == NULL)
-        return;
+    if (buffer == NULL)
+    {
+       LOGE("Error loading (%s) image.\n", fileName);
+       return;
+    }
 
     glGenTextures(1, &textureId);
     glBindTexture(GL_TEXTURE_2D, textureId);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wid, hei, 
-                    0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wid, hei, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    free(buffer);
 
     glViewport(0, 0, width, height);
 }
@@ -146,10 +144,10 @@ void Director::mainLoop()
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // use white color as background
     glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    glVertexAttribPointer(positionLoc, 4, GL_FLOAT, 
-                            GL_FALSE, 6 * sizeof(GLfloat), gVertices);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, 
+                            GL_FALSE, 5 * sizeof(GLfloat), gVertices);
     glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT,
-                            GL_FALSE, 6 * sizeof(GLfloat), &gVertices[4]);
+                            GL_FALSE, 5 * sizeof(GLfloat), &gVertices[3]);
     glEnableVertexAttribArray(positionLoc);
     glEnableVertexAttribArray(texCoordLoc);
 
@@ -161,13 +159,6 @@ void Director::mainLoop()
     glUniform1i(samplerLoc, 0);
 
     // Draw quad with nearest sampling
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glUniform1f(offsetLoc, -0.6f);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
-
-    // Draw quad with trilinear filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glUniform1f(offsetLoc, 0.6f);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 
 }
@@ -181,4 +172,55 @@ void Director::onEnterForeground()
 {
     LOGV("Director::onEnterForeground");
 }
+
+char* Director::loadTGA(const char *fileName, int *width, int *height)
+{
+    char *buffer = NULL;
+    FILE *f;
+    unsigned char tgaheader[12];
+    unsigned char attributes[6];
+    unsigned int imagesize;
+
+    f = fopen(fileName, "rb");
+    if (f == NULL) 
+    {
+        LOGE("file %s not find!", fileName);
+        return NULL;
+    }
+    if (fread(&tgaheader, sizeof(tgaheader), 1, f) == 0)
+    {
+        fclose(f);
+        return NULL;
+    }
+    if (fread(attributes, sizeof(attributes), 1, f) == 0)
+    {
+        fclose(f);
+        return 0;
+    }
+
+    *width = attributes[1] * 256 + attributes[0];
+    *height = attributes[3] * 256 + attributes[2];
+    imagesize = attributes[4] / 8 * *width * *height;
+    buffer = (char*)malloc(imagesize);
+    if (buffer == NULL)
+    {
+        fclose(f);
+        return 0;
+    }
+
+    if(fread(buffer, 1, imagesize, f) != imagesize)
+    {
+        free(buffer);
+        return NULL;
+    }
+    fclose(f);
+
+    LOGV("Director::loadTGA %s: width %d, height %d.", fileName, *width, *height);
+
+    return buffer;
+}
+
+
+
+
 
